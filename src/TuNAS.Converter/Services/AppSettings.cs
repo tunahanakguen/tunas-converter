@@ -6,8 +6,11 @@ namespace TuNAS.Converter.Services;
 /// <summary>Einstellungen und Protokoll liegen unter %AppData%\TuNAS Converter.</summary>
 public sealed class AppSettings
 {
+    /// <summary>Mit der Umgebungsvariable TUNAS_APPDATA lässt sich ein anderer Ordner wählen (für Tests).</summary>
     public static string Folder { get; } =
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "TuNAS Converter");
+        Environment.GetEnvironmentVariable("TUNAS_APPDATA") is { Length: > 0 } custom
+            ? custom
+            : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "TuNAS Converter");
 
     private static string FilePath => Path.Combine(Folder, "settings.json");
 

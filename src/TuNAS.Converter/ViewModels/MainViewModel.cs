@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Threading.Channels;
 using System.Windows;
+using System.Windows.Shell;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Win32;
@@ -89,6 +90,14 @@ public partial class MainViewModel : ObservableObject
 
     [ObservableProperty]
     private string _progressText = "";
+
+    /// <summary>Balken im Taskleisten-Symbol: läuft beim Umwandeln mit, rot bei Fehler, sonst ausgeblendet.</summary>
+    [ObservableProperty]
+    private TaskbarItemProgressState _taskbarState = TaskbarItemProgressState.None;
+
+    /// <summary>Fortschritt für die Taskleiste, 0 bis 1.</summary>
+    [ObservableProperty]
+    private double _taskbarProgress;
 
     [ObservableProperty]
     private string? _resultText;
@@ -461,29 +470,50 @@ public partial class MainViewModel : ObservableObject
         ResultText = null;
         Progress = 0;
         ProgressText = "Starte …";
+        TaskbarProgress = 0;
+        TaskbarState = TaskbarItemProgressState.Normal;
         var progress = new Progress<ConversionProgress>(p =>
         {
             Progress = p.Fraction * 100;
             ProgressText = $"{p.Fraction:P0} – {p.Title}";
+            TaskbarProgress = p.Fraction;
         });
 
+        var failed = false;
         try
         {
             var result = await ConversionService.RunAsync(plan, progress, _convertCts.Token);
             ReportResult(result, plan, estimate);
+            failed = !result.Cancelled && (result.Failures.Count > 0 || result.Outputs.Count == 0);
         }
         catch (Exception ex)
         {
             Logger.Write("Umwandeln fehlgeschlagen: " + ex);
             ShowResult("Beim Umwandeln ist ein Fehler aufgetreten: " + ex.Message, isError: true);
+            failed = true;
         }
         finally
         {
             IsConverting = false;
             _convertCts.Dispose();
             _convertCts = null;
+            FinishTaskbar(failed);
             RequestEstimate();
         }
+    }
+
+    /// <summary>Nach dem Umwandeln verschwindet der Balken; bei einem Fehler leuchtet er kurz rot.</summary>
+    private async void FinishTaskbar(bool failed)
+    {
+        if (!failed)
+        {
+            TaskbarState = TaskbarItemProgressState.None;
+            return;
+        }
+        TaskbarProgress = 1;
+        TaskbarState = TaskbarItemProgressState.Error;
+        await Task.Delay(TimeSpan.FromSeconds(5));
+        if (!IsConverting) TaskbarState = TaskbarItemProgressState.None;
     }
 
     [RelayCommand]
