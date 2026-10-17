@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/TuNAS.Converter/TuNAS.Converter.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/TuNAS.Converter.Tests/TuNAS.Converter.Tests.csproj" />
+  </Folder>
+</Solution>

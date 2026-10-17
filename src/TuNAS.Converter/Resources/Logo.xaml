@@ -1,0 +1,8 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!--
+        TUNAS-Logo (Corporate Design): weißer Thunfisch im Ring auf schwarzem Grund.
+        Vorlage: branding/tunas-logo-1024.png. TunasLogo.png und das Programmsymbol erzeugt tools/make-icon.ps1.
+    -->
+    <BitmapImage x:Key="LogoImage" UriSource="/Resources/TunasLogo.png" />
+</ResourceDictionary>
