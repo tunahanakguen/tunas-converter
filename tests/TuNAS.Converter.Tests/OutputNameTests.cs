@@ -34,4 +34,27 @@ public class OutputNameTests
         vm.JoinFiles = false;
         Assert.False(vm.IsOutputNameEditable);
     }
+
+    [Fact]
+    public void Summary_shows_total_length_after_cuts()
+    {
+        var vm = new MainViewModel();
+        var a = Ready(@"C:\v\a.mp4");
+        var b = Ready(@"C:\v\b.mp4");
+        vm.Clips.Add(a);
+        Assert.False(vm.HasSummary); // erst ab zwei Dateien
+
+        vm.Clips.Add(b);
+        Assert.True(vm.HasSummary);
+        Assert.Equal("2 Dateien · zusammen 00:20", vm.SummaryText);
+
+        vm.JoinFiles = true;
+        Assert.Equal("Zusammengefügtes Video: 2 Clips · Gesamtlänge 00:20", vm.SummaryText);
+
+        var changed = false;
+        vm.PropertyChanged += (_, e) => changed |= e.PropertyName == nameof(MainViewModel.SummaryText);
+        b.SetRemovedRanges(new[] { new TimeRange(TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(6)) });
+        Assert.True(changed);
+        Assert.Equal("Zusammengefügtes Video: 2 Clips · Gesamtlänge 00:16  (vorher 00:20)", vm.SummaryText);
+    }
 }

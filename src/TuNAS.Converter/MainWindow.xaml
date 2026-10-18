@@ -59,6 +59,29 @@
         <!-- Dateiliste -->
         <Grid Grid.Row="1" Margin="16,12,16,8">
             <Border Background="{StaticResource PanelBackground}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="8">
+                <DockPanel>
+                <!-- Summenzeile: Gesamtlänge aller Clips nach den Schnitten -->
+                <Border DockPanel.Dock="Bottom" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,1,0,0" Padding="14,10"
+                        Background="{StaticResource PanelAlt}" CornerRadius="0,0,8,8"
+                        Visibility="{Binding HasSummary, Converter={StaticResource BoolToVisibility}}">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock FontFamily="{StaticResource IconFont}" FontSize="15" VerticalAlignment="Center" Margin="0,0,10,0"
+                                   Foreground="{StaticResource TextPrimary}">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Text" Value="&#xE8B7;" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding JoinFiles}" Value="True">
+                                            <Setter Property="Text" Value="&#xE71B;" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                        <TextBlock Text="{Binding SummaryText}" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center"
+                                   Foreground="{StaticResource TextPrimary}" />
+                    </StackPanel>
+                </Border>
                 <ListBox x:Name="ClipList" ItemsSource="{Binding Clips}" BorderThickness="0" Background="Transparent"
                          ScrollViewer.HorizontalScrollBarVisibility="Disabled" HorizontalContentAlignment="Stretch"
                          VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling">
@@ -134,6 +157,7 @@
                         </DataTemplate>
                     </ListBox.ItemTemplate>
                 </ListBox>
+                </DockPanel>
             </Border>
 
             <!-- Leerer Zustand -->

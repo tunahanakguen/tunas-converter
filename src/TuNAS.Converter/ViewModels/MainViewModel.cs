@@ -143,6 +143,33 @@ public partial class MainViewModel : ObservableObject
         _settingDefaultName = false;
     }
 
+    // ---------- Gesamtlänge ----------
+
+    /// <summary>Summenzeile unter der Liste, sobald mindestens zwei Dateien gelesen sind.</summary>
+    public bool HasSummary => Clips.Count(c => c.IsReady) > 1;
+
+    /// <summary>Gesamtlänge nach allen Schnitten, z. B. „Zusammengefügtes Video: 3 Clips · Gesamtlänge 12:34 (vorher 15:00)“.</summary>
+    public string SummaryText
+    {
+        get
+        {
+            var ready = Clips.Where(c => c.IsReady && c.Info != null).ToList();
+            if (ready.Count < 2) return "";
+            var kept = ready.Aggregate(TimeSpan.Zero, (sum, c) => sum + c.KeptDuration);
+            var original = ready.Aggregate(TimeSpan.Zero, (sum, c) => sum + c.Info!.Duration);
+            var before = kept < original - TimeSpan.FromMilliseconds(500) ? $"  (vorher {Format.Time(original)})" : "";
+            return JoinFiles
+                ? $"Zusammengefügtes Video: {ready.Count} Clips · Gesamtlänge {Format.Time(kept)}{before}"
+                : $"{ready.Count} Dateien · zusammen {Format.Time(kept)}{before}";
+        }
+    }
+
+    private void RaiseSummaryChanged()
+    {
+        OnPropertyChanged(nameof(HasSummary));
+        OnPropertyChanged(nameof(SummaryText));
+    }
+
     public string SettingsTitle => SelectedFormat == null
         ? ""
         : $"In {SelectedFormat.Name} umwandeln" + (JoinFiles && CanJoin ? " – alle Clips zu einer Datei" : "");
@@ -158,6 +185,7 @@ public partial class MainViewModel : ObservableObject
 
     partial void OnJoinFilesChanged(bool value)
     {
+        RaiseSummaryChanged();
         UpdateDefaultName();
         RequestEstimate();
     }
@@ -191,7 +219,6 @@ public partial class MainViewModel : ObservableObject
         {
             if (Clips.Any(c => string.Equals(c.FilePath, file, StringComparison.OrdinalIgnoreCase))) continue;
             var clip = new ClipItem(file);
-            clip.PropertyChanged += OnClipPropertyChanged;
             Clips.Add(clip);
             _loadQueue.Writer.TryWrite(clip);
         }
@@ -253,7 +280,6 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void RemoveClip(ClipItem clip)
     {
-        clip.PropertyChanged -= OnClipPropertyChanged;
         Clips.Remove(clip);
     }
 
@@ -288,10 +314,17 @@ public partial class MainViewModel : ObservableObject
 
     private void OnClipsChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
+        // Auf Änderungen jedes Clips hören (Lesen fertig, Schnitte), egal wie er in die Liste kam.
+        if (e.OldItems != null)
+            foreach (ClipItem clip in e.OldItems) clip.PropertyChanged -= OnClipPropertyChanged;
+        if (e.NewItems != null && e.Action != NotifyCollectionChangedAction.Move)
+            foreach (ClipItem clip in e.NewItems) clip.PropertyChanged += OnClipPropertyChanged;
+
         OnPropertyChanged(nameof(HasClips));
         OnPropertyChanged(nameof(CanConvert));
         OnPropertyChanged(nameof(CanJoin));
         OnPropertyChanged(nameof(SettingsTitle));
+        RaiseSummaryChanged();
         UpdateDefaultName();
         RequestEstimate();
     }
@@ -303,6 +336,7 @@ public partial class MainViewModel : ObservableObject
             OnPropertyChanged(nameof(CanConvert));
             OnPropertyChanged(nameof(CanJoin));
             OnPropertyChanged(nameof(SettingsTitle));
+            RaiseSummaryChanged();
             if (e.PropertyName == nameof(ClipItem.State)) UpdateDefaultName();
             RequestEstimate();
         }
