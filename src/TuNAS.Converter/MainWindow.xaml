@@ -83,6 +83,7 @@
                     </StackPanel>
                 </Border>
                 <ListBox x:Name="ClipList" ItemsSource="{Binding Clips}" BorderThickness="0" Background="Transparent"
+                         PreviewMouseLeftButtonDown="OnListMouseDown" PreviewMouseMove="OnListMouseMove" PreviewMouseLeftButtonUp="OnListMouseUp"
                          ScrollViewer.HorizontalScrollBarVisibility="Disabled" HorizontalContentAlignment="Stretch"
                          VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling">
                     <ListBox.ItemContainerStyle>
@@ -107,20 +108,30 @@
                     </ListBox.ItemContainerStyle>
                     <ListBox.ItemTemplate>
                         <DataTemplate DataType="{x:Type models:ClipItem}">
-                            <Grid>
+                            <Grid Background="Transparent" Cursor="SizeAll" ToolTip="Zum Verschieben anklicken und ziehen">
                                 <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
                                     <ColumnDefinition Width="Auto" />
                                     <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
-                                <Border Width="96" Height="54" CornerRadius="4" Background="{StaticResource PanelAlt}" ClipToBounds="True">
+                                <!-- Griff und Platznummer = Reihenfolge beim Zusammenfügen -->
+                                <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="0,0,12,0">
+                                    <Border Width="26" Height="26" CornerRadius="13" BorderBrush="{StaticResource TextSecondary}" BorderThickness="1">
+                                        <TextBlock Text="{Binding Position}" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}"
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                    </Border>
+                                    <TextBlock Text="&#xE700;" FontFamily="{StaticResource IconFont}" FontSize="12" Foreground="{StaticResource TextMuted}"
+                                               HorizontalAlignment="Center" Margin="0,6,0,0" />
+                                </StackPanel>
+                                <Border Grid.Column="1" Width="96" Height="54" CornerRadius="4" Background="{StaticResource PanelAlt}" ClipToBounds="True">
                                     <Grid>
                                         <TextBlock Text="&#xE714;" FontFamily="{StaticResource IconFont}" FontSize="20" Foreground="{StaticResource TextMuted}"
                                                    HorizontalAlignment="Center" VerticalAlignment="Center" />
                                         <Image Source="{Binding Thumbnail}" Stretch="UniformToFill" />
                                     </Grid>
                                 </Border>
-                                <StackPanel Grid.Column="1" Margin="12,0" VerticalAlignment="Center">
+                                <StackPanel Grid.Column="2" Margin="12,0" VerticalAlignment="Center">
                                     <TextBlock Text="{Binding FileName}" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}" TextTrimming="CharacterEllipsis" />
                                     <TextBlock Text="{Binding DetailsText}" FontSize="12" Margin="0,3,0,0" TextTrimming="CharacterEllipsis">
                                         <TextBlock.Style>
@@ -137,7 +148,7 @@
                                     <ProgressBar IsIndeterminate="True" Height="3" Width="160" HorizontalAlignment="Left" Margin="0,6,0,0"
                                                  Visibility="{Binding IsLoading, Converter={StaticResource BoolToVisibility}}" />
                                 </StackPanel>
-                                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                                <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center" Cursor="Arrow">
                                     <Button Style="{StaticResource IconButton}" Content="&#xE70E;" ToolTip="Nach oben" Margin="0,0,4,0"
                                             Command="{Binding DataContext.MoveUpCommand, RelativeSource={RelativeSource AncestorType=ListBox}}" CommandParameter="{Binding}" />
                                     <Button Style="{StaticResource IconButton}" Content="&#xE70D;" ToolTip="Nach unten" Margin="0,0,12,0"

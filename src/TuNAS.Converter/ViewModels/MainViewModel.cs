@@ -298,27 +298,33 @@ public partial class MainViewModel : ObservableObject
         EditRequested?.Invoke(clip);
     }
 
-    [RelayCommand]
-    private void MoveUp(ClipItem clip)
+    /// <summary>Verschiebt einen Clip an eine neue Stelle (z. B. per Ziehen mit der Maus).</summary>
+    public void MoveClip(ClipItem clip, int newIndex)
     {
-        var i = Clips.IndexOf(clip);
-        if (i > 0) Clips.Move(i, i - 1);
+        var oldIndex = Clips.IndexOf(clip);
+        if (oldIndex < 0 || IsConverting) return;
+        newIndex = Math.Clamp(newIndex, 0, Clips.Count - 1);
+        if (newIndex != oldIndex) Clips.Move(oldIndex, newIndex);
     }
 
     [RelayCommand]
-    private void MoveDown(ClipItem clip)
-    {
-        var i = Clips.IndexOf(clip);
-        if (i >= 0 && i < Clips.Count - 1) Clips.Move(i, i + 1);
-    }
+    private void MoveUp(ClipItem clip) => MoveClip(clip, Clips.IndexOf(clip) - 1);
+
+    [RelayCommand]
+    private void MoveDown(ClipItem clip) => MoveClip(clip, Clips.IndexOf(clip) + 1);
 
     private void OnClipsChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
         // Auf Änderungen jedes Clips hören (Lesen fertig, Schnitte), egal wie er in die Liste kam.
-        if (e.OldItems != null)
-            foreach (ClipItem clip in e.OldItems) clip.PropertyChanged -= OnClipPropertyChanged;
-        if (e.NewItems != null && e.Action != NotifyCollectionChangedAction.Move)
-            foreach (ClipItem clip in e.NewItems) clip.PropertyChanged += OnClipPropertyChanged;
+        // Beim Verschieben bleibt der Clip derselbe – dann nichts an- oder abmelden.
+        if (e.Action != NotifyCollectionChangedAction.Move)
+        {
+            if (e.OldItems != null)
+                foreach (ClipItem clip in e.OldItems) clip.PropertyChanged -= OnClipPropertyChanged;
+            if (e.NewItems != null)
+                foreach (ClipItem clip in e.NewItems) clip.PropertyChanged += OnClipPropertyChanged;
+        }
+        for (var i = 0; i < Clips.Count; i++) Clips[i].Position = i + 1;
 
         OnPropertyChanged(nameof(HasClips));
         OnPropertyChanged(nameof(CanConvert));

@@ -35,6 +35,10 @@ public partial class ClipItem : ObservableObject
     [ObservableProperty]
     private ImageSource? _thumbnail;
 
+    /// <summary>Platz in der Liste (1, 2, 3 …) = Reihenfolge beim Zusammenfügen.</summary>
+    [ObservableProperty]
+    private int _position;
+
     public IReadOnlyList<TimeRange> RemovedRanges => _removed;
 
     public bool IsReady => State == ClipState.Ready;
