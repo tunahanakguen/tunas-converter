@@ -25,7 +25,7 @@ public class OutputNameTests
 
         vm.JoinFiles = true;
         Assert.True(vm.IsOutputNameEditable);
-        Assert.StartsWith("Zusammengefügt", vm.OutputName);
+        Assert.Equal("Urlaub_Strand", vm.OutputName);
 
         vm.OutputName = "Norwegen 2026";
         vm.Clips.Add(Ready(@"C:\v\Fjord.mp4"));
@@ -33,6 +33,23 @@ public class OutputNameTests
 
         vm.JoinFiles = false;
         Assert.False(vm.IsOutputNameEditable);
+    }
+
+    [Fact]
+    public void Join_name_combines_first_10_characters_of_each_file()
+    {
+        var vm = new MainViewModel { JoinFiles = true };
+        vm.Clips.Add(Ready(@"C:\v\Urlaub_Strand.mp4"));
+        vm.Clips.Add(Ready(@"C:\v\Geburtstag.avi"));
+        vm.Clips.Add(Ready(@"C:\v\Fjord.mkv"));
+        Assert.Equal("Urlaub_Str_Geburtstag_Fjord", vm.OutputName);
+
+        vm.MoveClip(vm.Clips[2], 0); // Reihenfolge ändert den Vorschlag mit
+        Assert.Equal("Fjord_Urlaub_Str_Geburtstag", vm.OutputName);
+
+        vm.Clips.Add(Ready(@"C:\v\Hochzeit Rede Teil 2.mp4"));
+        Assert.Equal(35, vm.OutputName.Length); // nie länger als 35 Zeichen
+        Assert.Equal("Fjord_Urlaub_Str_Geburtstag_Hochzei", vm.OutputName);
     }
 
     [Fact]

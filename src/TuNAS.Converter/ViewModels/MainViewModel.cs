@@ -137,7 +137,7 @@ public partial class MainViewModel : ObservableObject
         if (_nameEdited) return;
 
         _settingDefaultName = true;
-        OutputName = mode == "join" ? CommandBuilder.DefaultJoinName()
+        OutputName = mode == "join" ? CommandBuilder.DefaultJoinName(ready)
             : mode.Length > 0 ? CommandBuilder.Shorten(Path.GetFileNameWithoutExtension(ready[0].FileName))
             : "";
         _settingDefaultName = false;

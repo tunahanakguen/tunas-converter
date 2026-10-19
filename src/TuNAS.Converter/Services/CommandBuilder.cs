@@ -74,7 +74,24 @@ public static class CommandBuilder
         return null;
     }
 
-    public static string DefaultJoinName() => $"Zusammengefügt {DateTime.Now:yyyy-MM-dd HH-mm}";
+    /// <summary>Zeichen pro Datei im vorgeschlagenen Namen beim Zusammenfügen.</summary>
+    public const int JoinNamePartLength = 10;
+
+    /// <summary>
+    /// Namensvorschlag beim Zusammenfügen: die ersten 10 Zeichen jeder Datei in Listen-Reihenfolge, mit „_“ verbunden,
+    /// insgesamt höchstens 35 Zeichen. Beispiel: „Urlaub_Strand“ + „Geburtstag“ + „Fjord“ → „Urlaub_Str_Geburtstag_Fjord“.
+    /// </summary>
+    public static string DefaultJoinName(IEnumerable<ClipItem> clips)
+    {
+        var parts = clips
+            .Select(c => CleanFileName(Path.GetFileNameWithoutExtension(c.FileName)))
+            .Where(n => n != null)
+            .Select(n => n!.Length > JoinNamePartLength ? n[..JoinNamePartLength] : n)
+            .Select(n => n.Trim(' ', '_', '-', '.'))
+            .Where(n => n.Length > 0);
+        var name = Shorten(string.Join("_", parts));
+        return name.Length > 0 ? name : $"Zusammengefügt {DateTime.Now:yyyy-MM-dd HH-mm}";
+    }
 
     /// <summary>Entfernt Zeichen, die Windows in Dateinamen nicht erlaubt; leer → null.</summary>
     public static string? CleanFileName(string? name)
@@ -102,7 +119,7 @@ public static class CommandBuilder
 
         var name = CleanFileName(outputName);
         if (join)
-            BuildJoined(plan, ready, format, quality, outputFolder, tempDir, reserved, name ?? DefaultJoinName());
+            BuildJoined(plan, ready, format, quality, outputFolder, tempDir, reserved, name ?? DefaultJoinName(ready));
         else
             BuildSeparate(plan, ready, format, quality, outputFolder, tempDir, reserved, ready.Count == 1 ? name : null);
 
