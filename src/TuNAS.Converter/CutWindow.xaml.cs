@@ -47,6 +47,7 @@ public partial class CutWindow : Window
     // Lautstärke 0–100 und Stumm; wird in den Einstellungen gemerkt.
     private int _volume = Math.Clamp(AppSettings.Current.PlayerVolume, 0, 100);
     private bool _muted = AppSettings.Current.PlayerMuted;
+    private bool _restoringVolume;
 
     public CutWindow(ClipItem clip)
     {
@@ -61,7 +62,9 @@ public partial class CutWindow : Window
         Position.SmallChange = _frame.TotalSeconds;
         Position.LargeChange = 5;
         _playTimer.Tick += (_, _) => PollPlayer();
+        _restoringVolume = true; // gemerkte Werte setzen, ohne „lauter drehen hebt Stumm auf“ auszulösen
         VolumeSlider.Value = _volume;
+        _restoringVolume = false;
         UpdateVolumeDisplay();
 
         Loaded += OnLoaded;
@@ -133,7 +136,7 @@ public partial class CutWindow : Window
     private void OnVolumeChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
     {
         _volume = (int)Math.Round(e.NewValue);
-        if (_volume > 0 && _muted && e.OldValue < e.NewValue) _muted = false; // lauter drehen hebt Stumm auf
+        if (!_restoringVolume && _volume > 0 && _muted && e.OldValue < e.NewValue) _muted = false; // lauter drehen hebt Stumm auf
         ApplyVolume();
         UpdateVolumeDisplay();
     }
