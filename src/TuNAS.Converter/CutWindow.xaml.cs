@@ -44,6 +44,10 @@ public partial class CutWindow : Window
     private bool _ended;
     private bool _startingUp;
 
+    // Lautstärke 0–100 und Stumm; wird in den Einstellungen gemerkt.
+    private int _volume = Math.Clamp(AppSettings.Current.PlayerVolume, 0, 100);
+    private bool _muted = AppSettings.Current.PlayerMuted;
+
     public CutWindow(ClipItem clip)
     {
         InitializeComponent();
@@ -57,6 +61,8 @@ public partial class CutWindow : Window
         Position.SmallChange = _frame.TotalSeconds;
         Position.LargeChange = 5;
         _playTimer.Tick += (_, _) => PollPlayer();
+        VolumeSlider.Value = _volume;
+        UpdateVolumeDisplay();
 
         Loaded += OnLoaded;
         Closed += OnClosed;
@@ -98,6 +104,9 @@ public partial class CutWindow : Window
     private void OnClosed(object? sender, EventArgs e)
     {
         _playTimer.Stop();
+        AppSettings.Current.PlayerVolume = _volume;
+        AppSettings.Current.PlayerMuted = _muted;
+        AppSettings.Current.Save();
         var player = _player;
         var libVlc = _libVlc;
         _player = null;
@@ -119,6 +128,41 @@ public partial class CutWindow : Window
         });
     }
 
+    // ---------- Lautstärke ----------
+
+    private void OnVolumeChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        _volume = (int)Math.Round(e.NewValue);
+        if (_volume > 0 && _muted && e.OldValue < e.NewValue) _muted = false; // lauter drehen hebt Stumm auf
+        ApplyVolume();
+        UpdateVolumeDisplay();
+    }
+
+    private void OnMuteClick(object sender, RoutedEventArgs e) => ToggleMute();
+
+    private void ToggleMute()
+    {
+        _muted = !_muted;
+        ApplyVolume();
+        UpdateVolumeDisplay();
+    }
+
+    private void ChangeVolume(int delta) => VolumeSlider.Value = Math.Clamp(_volume + delta, 0, 100);
+
+    private void ApplyVolume()
+    {
+        if (_player == null || _startingUp) return;
+        _player.Volume = _volume;
+        _player.Mute = _muted || _volume == 0;
+    }
+
+    private void UpdateVolumeDisplay()
+    {
+        var silent = _muted || _volume == 0;
+        MuteButton.Content = silent ? "" : _volume < 34 ? "" : _volume < 67 ? "" : "";
+        VolumeText.Text = silent ? "stumm" : $"{_volume} %";
+    }
+
     // Ereignisse von VLC kommen aus einem eigenen Thread: nur weiterreichen, nie den Player direkt darin steuern.
     private void OnPlayerTimeChanged(object? sender, MediaPlayerTimeChangedEventArgs e) =>
         Dispatcher.BeginInvoke(() => OnSourceTime(TimeSpan.FromMilliseconds(e.Time)));
@@ -130,10 +174,11 @@ public partial class CutWindow : Window
             {
                 _startingUp = false;
                 _player.SetPause(true);
-                _player.Mute = false;
+                ApplyVolume();
                 SeekToSource(_kept.Count > 0 ? _kept[0].Start : TimeSpan.Zero);
                 return;
             }
+            ApplyVolume(); // VLC setzt die Lautstärke beim Start der Tonausgabe manchmal zurück
             PlayButton.Content = "";
             _playTimer.Start();
         });
@@ -435,6 +480,15 @@ public partial class CutWindow : Window
                 break;
             case Key.Z when ctrl:
                 Undo();
+                break;
+            case Key.M:
+                ToggleMute();
+                break;
+            case Key.Up:
+                ChangeVolume(+5);
+                break;
+            case Key.Down:
+                ChangeVolume(-5);
                 break;
             default:
                 return;

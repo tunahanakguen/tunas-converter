@@ -31,7 +31,7 @@ public partial class MainViewModel : ObservableObject
         ".aiff", ".aifc", ".au", ".ape", ".caf", ".dts", ".mka", ".mp2", ".mpc", ".tta", ".wv", ".voc", ".w64", ".ra",
     };
 
-    private readonly AppSettings _settings = AppSettings.Load();
+    private readonly AppSettings _settings = AppSettings.Current;
     private readonly Channel<ClipItem> _loadQueue = Channel.CreateUnbounded<ClipItem>();
     private CancellationTokenSource? _estimateCts;
     private CancellationTokenSource? _convertCts;

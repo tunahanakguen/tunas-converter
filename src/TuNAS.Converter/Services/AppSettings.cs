@@ -14,8 +14,16 @@ public sealed class AppSettings
 
     private static string FilePath => Path.Combine(Folder, "settings.json");
 
+    /// <summary>Eine gemeinsame Instanz für das ganze Programm, damit sich Fenster nicht gegenseitig Werte überschreiben.</summary>
+    public static AppSettings Current { get; } = Load();
+
     public string OutputFolder { get; set; } =
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyVideos), "TuNAS Converter");
+
+    /// <summary>Lautstärke im Schneidefenster, 0–100.</summary>
+    public int PlayerVolume { get; set; } = 80;
+
+    public bool PlayerMuted { get; set; }
 
     public static AppSettings Load()
     {

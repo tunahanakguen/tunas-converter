@@ -32,6 +32,12 @@
                 <Button x:Name="PlayButton" Style="{StaticResource IconButton}" Content="&#xE768;" ToolTip="Abspielen / Pause (Leertaste)" Click="OnPlayPause" Margin="0,0,4,0" />
                 <Button Style="{StaticResource IconButton}" Content="&#xE893;" ToolTip="Ein Bild vor (Pfeil rechts)" Click="OnStepForward" Margin="0,0,10,0" />
                 <TextBlock x:Name="TimeText" VerticalAlignment="Center" FontFamily="Consolas" FontSize="13" Foreground="{StaticResource TextPrimary}" Text="00:00.0 / 00:00.0" />
+                <!-- Lautstärke -->
+                <Button x:Name="MuteButton" Style="{StaticResource IconButton}" Content="&#xE767;" ToolTip="Stumm / Laut (Taste M)" Click="OnMuteClick" Margin="16,0,4,0" />
+                <Slider x:Name="VolumeSlider" Width="110" Minimum="0" Maximum="100" SmallChange="5" LargeChange="10" VerticalAlignment="Center"
+                        IsMoveToPointEnabled="True" ValueChanged="OnVolumeChanged" ToolTip="Lautstärke (Pfeil hoch / runter)" />
+                <TextBlock x:Name="VolumeText" Width="40" Margin="6,0,0,0" VerticalAlignment="Center" FontSize="12"
+                           Foreground="{StaticResource TextSecondary}" Text="80 %" />
             </StackPanel>
 
             <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">

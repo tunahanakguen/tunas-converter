@@ -1,4 +1,6 @@
+using System.IO;
 using TuNAS.Converter.Models;
+using TuNAS.Converter.Services;
 using TuNAS.Converter.ViewModels;
 
 namespace TuNAS.Converter.Tests;
@@ -50,6 +52,21 @@ public class OutputNameTests
         vm.Clips.Add(Ready(@"C:\v\Hochzeit Rede Teil 2.mp4"));
         Assert.Equal(35, vm.OutputName.Length); // nie länger als 35 Zeichen
         Assert.Equal("Fjord_Urlaub_Str_Geburtstag_Hochzei", vm.OutputName);
+    }
+
+    [Fact]
+    public void Player_volume_is_saved_with_other_settings()
+    {
+        var settings = AppSettings.Current;
+        Assert.StartsWith(Path.GetTempPath(), AppSettings.Folder); // Testordner, nie die echten Einstellungen
+        settings.PlayerVolume = 35;
+        settings.PlayerMuted = true;
+        settings.Save();
+
+        var reloaded = AppSettings.Load();
+        Assert.Equal(35, reloaded.PlayerVolume);
+        Assert.True(reloaded.PlayerMuted);
+        Assert.Equal(settings.OutputFolder, reloaded.OutputFolder); // Zielordner geht dabei nicht verloren
     }
 
     [Fact]
