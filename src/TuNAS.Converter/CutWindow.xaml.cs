@@ -27,6 +27,11 @@ public partial class CutWindow : Window
     private readonly TimeSpan _frame;
     private readonly Stack<List<TimeRange>> _undo = new();
     private readonly DispatcherTimer _playTimer = new() { Interval = TimeSpan.FromMilliseconds(40) };
+    private readonly CancellationTokenSource _closing = new();
+
+    // Beim Ziehen auf der Zeitleiste nicht bei jeder Mausbewegung springen, sonst kommt der Player nicht hinterher.
+    private readonly DispatcherTimer _seekTimer = new() { Interval = TimeSpan.FromMilliseconds(120) };
+    private TimeSpan? _pendingSeek;
 
     private List<TimeRange> _removed;
     private List<TimeRange> _kept = new();
@@ -62,6 +67,12 @@ public partial class CutWindow : Window
         Position.SmallChange = _frame.TotalSeconds;
         Position.LargeChange = 5;
         _playTimer.Tick += (_, _) => PollPlayer();
+        _seekTimer.Tick += (_, _) =>
+        {
+            _seekTimer.Stop();
+            if (_pendingSeek is { } target && _player != null) _player.Time = (long)target.TotalMilliseconds;
+            _pendingSeek = null;
+        };
         _restoringVolume = true; // gemerkte Werte setzen, ohne „lauter drehen hebt Stumm auf“ auszulösen
         VolumeSlider.Value = _volume;
         _restoringVolume = false;
@@ -78,7 +89,32 @@ public partial class CutWindow : Window
 
     // ---------- Player ----------
 
-    private void OnLoaded(object sender, RoutedEventArgs e)
+    private async void OnLoaded(object sender, RoutedEventArgs e)
+    {
+        Redraw();
+        var path = _clip.FilePath;
+        if (PreviewService.NeedsPreview(_clip.Info!))
+        {
+            PreparingPanel.Visibility = Visibility.Visible;
+            try
+            {
+                var progress = new Progress<double>(p => PreparingProgress.Value = p);
+                path = await PreviewService.GetAsync(_clip.FilePath, _duration, progress, _closing.Token) ?? _clip.FilePath;
+            }
+            catch (OperationCanceledException)
+            {
+                return; // Fenster wurde vorher geschlossen
+            }
+            catch (Exception ex)
+            {
+                Logger.Write("Vorschau-Kopie: " + ex);
+            }
+            PreparingPanel.Visibility = Visibility.Collapsed;
+        }
+        StartPlayer(path);
+    }
+
+    private void StartPlayer(string path)
     {
         try
         {
@@ -91,7 +127,7 @@ public partial class CutWindow : Window
             _player.EndReached += OnPlayerEndReached;
 
             // Angehalten gestartet zeigt VLC kein Bild. Darum kurz stumm abspielen und beim ersten Bild anhalten.
-            using var media = new Media(_libVlc, _clip.FilePath, FromType.FromPath);
+            using var media = new Media(_libVlc, path, FromType.FromPath);
             _startingUp = true;
             _player.Play(media);
             _player.Mute = true;
@@ -106,7 +142,9 @@ public partial class CutWindow : Window
 
     private void OnClosed(object? sender, EventArgs e)
     {
+        _closing.Cancel();
         _playTimer.Stop();
+        _seekTimer.Stop();
         AppSettings.Current.PlayerVolume = _volume;
         AppSettings.Current.PlayerMuted = _muted;
         AppSettings.Current.Save();
@@ -264,6 +302,17 @@ public partial class CutWindow : Window
     {
         if (_player == null) return;
         if (_player.IsPlaying) _player.SetPause(true);
+        else if (frames == 1 && !_ended && !_startingUp)
+        {
+            // Ein Bild vor: einfach weiterdekodieren statt springen (springen müsste ab dem letzten Schlüsselbild neu dekodieren).
+            var next = _current + _frame;
+            if (_kept.Any(s => _current >= s.Start && next < s.End))
+            {
+                _player.NextFrame();
+                SetCurrent(next);
+                return;
+            }
+        }
         SeekToEdited(EditedCurrent + TimeSpan.FromTicks(_frame.Ticks * frames));
     }
 
@@ -316,6 +365,15 @@ public partial class CutWindow : Window
     private void OnPositionChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
     {
         if (_settingSlider) return;
+        if (_dragging)
+        {
+            // Anzeige sofort, Sprung im Player gebündelt
+            var source = Segments.ToSource(_kept, TimeSpan.FromSeconds(e.NewValue));
+            SetCurrent(source);
+            _pendingSeek = source;
+            if (!_seekTimer.IsEnabled) _seekTimer.Start();
+            return;
+        }
         SeekToEdited(TimeSpan.FromSeconds(e.NewValue));
     }
 
@@ -324,6 +382,8 @@ public partial class CutWindow : Window
     private void OnDragCompleted(object sender, DragCompletedEventArgs e)
     {
         _dragging = false;
+        _seekTimer.Stop();
+        _pendingSeek = null;
         SeekToEdited(TimeSpan.FromSeconds(Position.Value));
     }
 

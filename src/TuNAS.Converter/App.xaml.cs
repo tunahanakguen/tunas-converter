@@ -20,6 +20,7 @@ public partial class App : Application
         base.OnStartup(e);
         LibVLCSharp.Shared.Core.Initialize();
         FfmpegTools.Locate();
+        PreviewService.Cleanup(); // Reste vom letzten Mal, falls das Programm nicht sauber beendet wurde
 
         var window = new MainWindow();
         MainWindow = window;
@@ -33,6 +34,12 @@ public partial class App : Application
                 "oder installiere FFmpeg (z. B. mit: winget install Gyan.FFmpeg) und starte TuNAS Converter neu.",
                 "TUNAS CONVERTER", MessageBoxButton.OK, MessageBoxImage.Warning);
         }
+    }
+
+    protected override void OnExit(ExitEventArgs e)
+    {
+        PreviewService.Cleanup();
+        base.OnExit(e);
     }
 
     private void OnDispatcherUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)

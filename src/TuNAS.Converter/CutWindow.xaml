@@ -15,7 +15,16 @@
 
         <!-- Player -->
         <Border Grid.Row="0" Background="Black">
-            <vlc:VideoView x:Name="Video" />
+            <vlc:VideoView x:Name="Video">
+                <!-- Nur bei Dateien ohne Inhaltsverzeichnis (z. B. .ts), solange die Vorschau-Kopie entsteht -->
+                <StackPanel x:Name="PreparingPanel" VerticalAlignment="Center" HorizontalAlignment="Center" Visibility="Collapsed">
+                    <TextBlock Text="Vorschau wird vorbereitet …" Foreground="{StaticResource TextPrimary}" FontSize="16" HorizontalAlignment="Center" />
+                    <ProgressBar x:Name="PreparingProgress" Width="260" Height="4" Margin="0,12,0,0" Maximum="1"
+                                 Background="{StaticResource PanelAlt}" Foreground="{StaticResource Accent}" BorderThickness="0" />
+                    <TextBlock Text="Einmalig für diese Datei, damit Springen und Bild-für-Bild sauber funktionieren.&#x0a;Schneiden über die Zeitleiste geht schon jetzt."
+                               Foreground="{StaticResource TextSecondary}" FontSize="12" Margin="0,12,0,0" TextAlignment="Center" />
+                </StackPanel>
+            </vlc:VideoView>
         </Border>
 
         <!-- Zeitleiste: rot = wird entfernt, blau = aktuelle Auswahl -->

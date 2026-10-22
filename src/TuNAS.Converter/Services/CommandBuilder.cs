@@ -14,6 +14,9 @@ public sealed class ConversionStep
     public required TimeSpan Duration { get; init; }
     public string? OutputFile { get; init; }
 
+    /// <summary>Zweiter Versuch, falls der erste scheitert (verlustfrei mit neu kodiertem Ton).</summary>
+    public List<string>? FallbackArgs { get; init; }
+
     /// <summary>Das Ergebnis dieses Schritts ist eine fertige Datei für den Nutzer (kein Zwischenteil).</summary>
     public bool IsFinal { get; init; }
 }
@@ -223,17 +226,33 @@ public static class CommandBuilder
         }
         WriteConcatList(listFile, entries);
 
-        var args = new List<string>(Common) { "-f", "concat", "-safe", "0", "-i", listFile };
-        if (format.AudioOnly) args.AddRange(new[] { "-vn", "-map", "0:a:0" });
-        else args.AddRange(new[] { "-map", "0:v:0", "-map", "0:a:0?" });
-        args.AddRange(new[] { "-c", "copy", "-avoid_negative_ts", "make_zero" });
-        if (format.FastStart) args.AddRange(new[] { "-movflags", "+faststart" });
-        args.Add(output);
+        List<string> Args(IEnumerable<string> codecs)
+        {
+            var args = new List<string>(Common) { "-f", "concat", "-safe", "0", "-i", listFile };
+            if (format.AudioOnly) args.AddRange(new[] { "-vn", "-map", "0:a:0" });
+            else args.AddRange(new[] { "-map", "0:v:0", "-map", "0:a:0?" });
+            args.AddRange(codecs);
+            args.AddRange(new[] { "-avoid_negative_ts", "make_zero" });
+            if (format.FastStart) args.AddRange(new[] { "-movflags", "+faststart" });
+            args.Add(output);
+            return args;
+        }
+
+        // Beschädigter Ton (häufig bei aufgezeichneten .ts-Dateien) lässt das reine Umpacken abbrechen.
+        // Dann wird der Ton neu kodiert; das Bild bleibt unverändert.
+        List<string>? fallback = null;
+        if (clips.Any(c => c.Info!.HasAudio))
+        {
+            var sourceAudio = clips.Max(c => c.Info!.AudioBitRate);
+            var audio = EncoderArgs.Audio(format, QualityLevel.Original, sourceAudio);
+            if (audio.Count > 0) fallback = Args((format.AudioOnly ? Array.Empty<string>() : new[] { "-c:v", "copy" }).Concat(audio));
+        }
 
         return new ConversionStep
         {
             Title = title,
-            Args = args,
+            Args = Args(new[] { "-c", "copy" }),
+            FallbackArgs = fallback,
             Duration = clips.Aggregate(TimeSpan.Zero, (sum, c) => sum + c.KeptDuration),
             OutputFile = output,
             IsFinal = isFinal,

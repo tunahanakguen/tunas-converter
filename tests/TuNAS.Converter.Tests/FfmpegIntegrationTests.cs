@@ -17,6 +17,7 @@ public sealed class MediaFixture : IDisposable
     public string Wav => Path.Combine(Folder, "e.wav");    // nur Ton, 5 s
     public string Vp9 => Path.Combine(Folder, "f.mkv");    // VP9 + Opus wie bei YouTube, 6 s
     public string LowBitrate => Path.Combine(Folder, "g.mp4"); // H.264 mit sehr kleiner Datenrate, 6 s
+    public string BrokenTs => Path.Combine(Folder, "h.ts");   // MPEG-TS mit beschädigtem Ton, 10 s
 
     public MediaFixture()
     {
@@ -36,6 +37,25 @@ public sealed class MediaFixture : IDisposable
             "-c:v libvpx-vp9 -b:v 300k -deadline realtime -cpu-used 8 -g 25 -c:a libopus -ac 2");
         Generate(LowBitrate, "testsrc2=size=1280x720:rate=25:duration=6", "sine=frequency=440:sample_rate=44100:duration=6",
             "-c:v libx264 -b:v 250k -pix_fmt yuv420p -c:a aac -b:a 64k -ac 2");
+        Generate(BrokenTs, "testsrc2=size=320x240:rate=25:duration=10", "sine=frequency=440:sample_rate=48000:duration=10",
+            "-c:v libx264 -pix_fmt yuv420p -g 50 -c:a aac -b:a 128k -f mpegts");
+        DamageAudioHeaders(BrokenTs);
+    }
+
+    /// <summary>Beschädigt drei AAC-Rahmenköpfe (ADTS), wie es bei abgebrochenen Aufnahmen vorkommt.</summary>
+    private static void DamageAudioHeaders(string path)
+    {
+        var bytes = File.ReadAllBytes(path);
+        var damaged = 0;
+        for (var i = (int)(bytes.Length * 0.3); i < bytes.Length - 8 && damaged < 3; i++)
+        {
+            if (bytes[i] != 0xFF || (bytes[i + 1] & 0xF6) != 0xF0) continue;
+            bytes[i + 2] = 0xFF;
+            bytes[i + 3] |= 0x3C;
+            damaged++;
+        }
+        Assert.Equal(3, damaged);
+        File.WriteAllBytes(path, bytes);
     }
 
     private void Generate(string output, string? video, string? audio, string codecArgs)
@@ -103,6 +123,57 @@ public class FfmpegIntegrationTests : IClassFixture<MediaFixture>
         Assert.Equal("h264", info.VideoCodec);
         Assert.Equal("aac", info.AudioCodec);
         Assert.InRange(info.Duration.TotalSeconds, 7.9, 8.1);
+    }
+
+    [Fact]
+    public async Task Ts_with_broken_audio_converts_losslessly_with_new_audio()
+    {
+        var clip = await Clip(_media.BrokenTs, (8, 9)); // Schaden liegt bei ca. 3 s, bleibt also drin
+        var plan = CommandBuilder.Build(new[] { clip }, Fmt("MP4"), QualityLevel.Original, join: false, _out);
+        Assert.True(plan.Lossless);
+        Assert.NotNull(plan.Steps.Single().FallbackArgs);
+        var result = await Run(plan); // erster Versuch scheitert am Ton, der zweite klappt
+
+        var info = await ProbeService.ProbeAsync(result.Outputs.Single(), CancellationToken.None);
+        Assert.Equal("h264", info.VideoCodec);
+        Assert.Equal("aac", info.AudioCodec);
+        Assert.InRange(info.Duration.TotalSeconds, 8.5, 9.5);
+    }
+
+    [Fact]
+    public async Task Ts_with_broken_audio_reencodes()
+    {
+        var clip = await Clip(_media.BrokenTs);
+        var result = await Run(CommandBuilder.Build(new[] { clip }, Fmt("MKV"), QualityLevel.Klein, join: false, _out));
+        var info = await ProbeService.ProbeAsync(result.Outputs.Single(), CancellationToken.None);
+        Assert.True(info.HasAudio);
+        Assert.InRange(info.Duration.TotalSeconds, 9.5, 10.5);
+    }
+
+    [Fact]
+    public async Task Ts_gets_preview_copy_with_index()
+    {
+        var ts = await ProbeService.ProbeAsync(_media.BrokenTs, CancellationToken.None);
+        Assert.True(PreviewService.NeedsPreview(ts));
+        Assert.False(PreviewService.NeedsPreview(await ProbeService.ProbeAsync(_media.Mp4A, CancellationToken.None)));
+
+        var preview = await PreviewService.GetAsync(_media.BrokenTs, ts.Duration, new Progress<double>(), CancellationToken.None);
+        Assert.NotNull(preview);
+        try
+        {
+            var info = await ProbeService.ProbeAsync(preview, CancellationToken.None);
+            Assert.Contains("matroska", info.FormatName);
+            Assert.Equal("h264", info.VideoCodec);
+            Assert.True(info.HasAudio);
+            Assert.InRange(info.Duration.TotalSeconds, ts.Duration.TotalSeconds - 0.3, ts.Duration.TotalSeconds + 0.3);
+
+            // Zweites Öffnen: dieselbe Datei, sofort da
+            Assert.Equal(preview, await PreviewService.GetAsync(_media.BrokenTs, ts.Duration, new Progress<double>(), CancellationToken.None));
+        }
+        finally
+        {
+            File.Delete(preview);
+        }
     }
 
     [Fact]

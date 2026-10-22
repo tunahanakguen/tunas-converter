@@ -40,9 +40,17 @@ public static class ConversionService
                 }
 
                 ProcessResult run;
+                var args = step.Args;
                 try
                 {
-                    run = await ProcessRunner.RunAsync(FfmpegTools.FfmpegPath, step.Args, ct, OnLine, lowPriority: true);
+                    run = await ProcessRunner.RunAsync(FfmpegTools.FfmpegPath, args, ct, OnLine, lowPriority: true);
+                    if (!Succeeded(run, step) && step.FallbackArgs != null)
+                    {
+                        Logger.Write($"„{step.Title}“: Umpacken fehlgeschlagen, zweiter Versuch mit neu kodiertem Ton.\n{run.StdErr}");
+                        TryDelete(step.OutputFile);
+                        args = step.FallbackArgs;
+                        run = await ProcessRunner.RunAsync(FfmpegTools.FfmpegPath, args, ct, OnLine, lowPriority: true);
+                    }
                 }
                 catch (OperationCanceledException)
                 {
@@ -51,16 +59,16 @@ public static class ConversionService
                     break;
                 }
 
-                if (run.ExitCode != 0 || step.OutputFile == null || !File.Exists(step.OutputFile))
+                if (!Succeeded(run, step))
                 {
                     TryDelete(step.OutputFile);
                     result.Failures.Add(new StepFailure(step.Title, Explain(run.StdErr)));
-                    Logger.Write($"ffmpeg-Fehler bei „{step.Title}“ (Code {run.ExitCode}):\n{run.StdErr}\nBefehl: {string.Join(" ", step.Args)}");
+                    Logger.Write($"ffmpeg-Fehler bei „{step.Title}“ (Code {run.ExitCode}):\n{run.StdErr}\nBefehl: {string.Join(" ", args)}");
                     if (plan.StopOnError) break;
                 }
                 else if (step.IsFinal)
                 {
-                    result.Outputs.Add(step.OutputFile);
+                    result.Outputs.Add(step.OutputFile!);
                 }
 
                 done += stepSeconds;
@@ -82,6 +90,9 @@ public static class ConversionService
         }
         return result;
     }
+
+    private static bool Succeeded(ProcessResult run, ConversionStep step) =>
+        run.ExitCode == 0 && step.OutputFile != null && File.Exists(step.OutputFile);
 
     /// <summary>Macht aus ffmpeg-Fehlertext einen verständlichen Satz.</summary>
     private static string Explain(string stderr)
