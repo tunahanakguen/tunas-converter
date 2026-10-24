@@ -4,7 +4,12 @@ Ein schneller, einfacher Video-Converter für Windows – mit aktuellem FFmpeg, 
 
 Datei reinziehen → optional Stellen herausschneiden → Format anklicken → fertig.
 
-## Funktionen (Version 0.2)
+## Herunterladen
+
+Den fertigen Installer gibt es unter [Releases](https://github.com/tunahanakguen/tunas-converter/releases): `TUNAS-Converter-Setup-1.0.0.exe` herunterladen und starten.
+Er bringt alles mit (.NET, VLC, FFmpeg) und installiert nach `C:\Program Files\TUNAS Converter`.
+
+## Funktionen (Version 1.0)
 
 - Videos und Audiodateien per Drag & Drop oder Knopf hinzufügen, auch ganze Ordner
 - Dateien werden nacheinander im Hintergrund gelesen – auch viele Clips auf einmal
@@ -12,6 +17,7 @@ Datei reinziehen → optional Stellen herausschneiden → Format anklicken → f
 - **Zusammenfügen** beliebig vieler Clips, auch mit unterschiedlicher Auflösung, Bildrate oder ohne Ton
   - Reihenfolge per Ziehen ändern, Gesamtlänge wird angezeigt, Name aus den Dateinamen vorgeschlagen
 - Lautstärkeregler im Schneidefenster (wird gemerkt)
+- Auch .ts-, .m2ts- und .mpg-Aufnahmen lassen sich sauber ansehen und schneiden; beschädigter Ton wird beim Umwandeln repariert
 - Fortschritt auch in der Taskleiste
 - **19 Zielformate**: MP4, MKV, AVI, MOV, WMV, WebM, Handy, MP3, FLV, MPEG, 3GP, M4A, WAV, FLAC, OGG, Opus, WMA, AC3, AMR
 - Qualität **Original / Hoch / Mittel / Klein**

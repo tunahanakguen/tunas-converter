@@ -2,7 +2,7 @@
 ; Wird von tools\build-installer.ps1 aufgerufen; AppVersion und SourceDir kommen von dort.
 
 #ifndef AppVersion
-  #define AppVersion "0.1.0"
+  #define AppVersion "1.0.0"
 #endif
 #ifndef SourceDir
   #define SourceDir "..\publish\app"
@@ -28,7 +28,8 @@ Compression=lzma2/max
 SolidCompression=yes
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
-PrivilegesRequiredOverridesAllowed=dialog
+; Immer für alle Benutzer nach C:\Program Files (nie ins Benutzerprofil)
+PrivilegesRequired=admin
 WizardStyle=modern
 MinVersion=10.0
 
